@@ -48,7 +48,7 @@ weights <- Dataset_Pew$WEIGHT
 data %<>% select(qi2g,qi2d,qi2b,qi2a,qi1,qh2,qh1,qg7b,qg7,qg6,qg5,qg1c,qg3,qg1,qg1b,qf2,
                  attend,born,racethn,marital,qb31,qb30,qb22,qb21,qb20,
                  qb21,qb22,qb20,qb2a,qb2c,qb2b,qb2d,qb1c,qb1b,qb1a,qa1,qi3,qp3rec,educ,agerec,
-                 qm5a,qm5b,qm5d,qm5e,qm5f,qm5g,party,ideo,income,RELTRAD)
+                 qm5a,qm5b,qm5d,qm5e,qm5f,qm5g,party,ideo,as.numeric(income),as.numeric(RELTRAD))
 
 data %<>% mutate_all(as_factor) %>% mutate_all(as.character)
 
@@ -72,6 +72,7 @@ item_types <- c(rep('graded',length(ordinal_vars)),
 
 data %<>% mutate_all(as.factor)
 
+data %<>% mutate(RELTRAD = relevel(RELTRAD,'Other<br>Faiths'))
 numeric <- data.matrix(data)
 colnames(numeric) <- names(data)
 
@@ -118,7 +119,8 @@ a <- list(
   ay = 0
 )
 
-person_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$state),'<br>','Age: ',as_factor(Dataset_Pew$agerec),'<br> Income: ',Dataset_Pew$income),region=as_factor(Dataset_Pew$cregion),income=Dataset_Pew$income)
+person_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$state),'<br>','Age: ',as_factor(Dataset_Pew$agerec),'<br>Income: ',Dataset_Pew$income),
+                          region=as_factor(Dataset_Pew$cregion))
 
  person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels,hoverinfo='text') %>% add_markers() %>% 
   layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
@@ -150,7 +152,7 @@ ordinal_coefs <- lapply(ordinal_coefs,function(x) {
 
 reltrad_slope <-  nominal_coefs$RELTRAD[grepl(pattern='a[0-9]',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
 reltrad_coefs <- nominal_coefs$RELTRAD[grepl(pattern='ak[0-9]+',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
-reltrad_labels <- levels(Dataset_Pew$RELTRAD)[3:length(levels(Dataset_Pew$RELTRAD))]
+reltrad_labels <- levels(data$RELTRAD)[3:length(levels(data$RELTRAD))]
 reltrad_data <- data_frame(dim1=reltrad_slope[[1]]*reltrad_coefs[reltrad_coefs!=0],
                            dim2=reltrad_slope[[2]]*reltrad_coefs[reltrad_coefs!=0],
                         labels=reltrad_labels)
