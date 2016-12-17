@@ -16,22 +16,20 @@ require(stringr)
 
 set.seed(111379)
 
-Dataset_Pew <- read_sav("~/R_Projects/pew/Dataset - Pew Research Center 2014 Religious Landscape Study National Telephone Survey - Version 1.1 - December 1 2016.sav")
+Dataset_Pew <- read_sav("Dataset - Pew Research Center 2014 Religious Landscape Study National Telephone Survey - Version 1.1 - December 1 2016.sav")
 
 #Need to relabel/relevel some variables to calculate correct reference categories
 
 Dataset_Pew$RELTRAD <- as_factor(Dataset_Pew$RELTRAD)
 Dataset_Pew$RELTRAD <- relevel(Dataset_Pew$RELTRAD,"Don't know/refused - no information on religious identity")
-levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Evangelical<br>Protestant","Mainline<br>Protestant",                           "Black<br>Protestant", "Catholic", "Mormon", "Orthodox<br>Christian", "Jehovah's Witness","Other<br>Christian","Jewish","Muslim","Buddhist","Hindu","Other<br>Religions","Other<br>Faiths","None")
+levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Evangelical<br>Protestant","Mainline<br>Protestant",                           "Black<br>Protestant", "Catholic", "Mormon", "Orthodox<br>Christian", "Jehovah's<br>Witness","Other<br>Christian","Jewish","Muslim","Buddhist","Hindu","Other<br>Religions","Other<br>Faiths","None")
 
 Dataset_Pew$RELTRAD <- recode_factor(Dataset_Pew$RELTRAD,'Other<br>Religions'="Other<br>Faiths")
 
 levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Buddhist","Evangelical<br>Protestant","Mainline<br>Protestant",                           "Black<br>Protestant", "Catholic", "Mormon", "Orthodox<br>Christian", "Jehovah's Witness","Other<br>Christian","Jewish","Muslim","Hindu","Other<br>Faiths","None")
 
-Dataset_Pew$income <- str_extract(as.character(as_factor(Dataset_Pew_Research_Center_2014_Religious_Landscape_Study_National_Telephone_Survey_Version_1_1_December_1_2016$income)),pattern = '\\$[1-9]+.+')
-Dataset_Pew$income[is.na(Dataset_Pew$income)] <- "Did Not Report" 
+Dataset_Pew$income <- str_extract(as.character(as_factor(Dataset_Pew$income)),pattern = '\\$[1-9]+.+')
 Dataset_Pew$income <- as.factor(Dataset_Pew$income)
-Dataset_Pew$income <- relevel(Dataset_Pew$income,'Did Not Report')
 
 data <- Dataset_Pew
 
@@ -48,7 +46,7 @@ weights <- Dataset_Pew$WEIGHT
 data %<>% select(qi2g,qi2d,qi2b,qi2a,qi1,qh2,qh1,qg7b,qg7,qg6,qg5,qg1c,qg3,qg1,qg1b,qf2,
                  attend,born,racethn,marital,qb31,qb30,qb22,qb21,qb20,
                  qb21,qb22,qb20,qb2a,qb2c,qb2b,qb2d,qb1c,qb1b,qb1a,qa1,qi3,qp3rec,educ,agerec,
-                 qm5a,qm5b,qm5d,qm5e,qm5f,qm5g,party,ideo,as.numeric(income),as.numeric(RELTRAD))
+                 qm5a,qm5b,qm5d,qm5e,qm5f,qm5g,party,ideo,income,RELTRAD)
 
 data %<>% mutate_all(as_factor) %>% mutate_all(as.character)
 
@@ -73,6 +71,8 @@ item_types <- c(rep('graded',length(ordinal_vars)),
 data %<>% mutate_all(as.factor)
 
 data %<>% mutate(RELTRAD = relevel(RELTRAD,'Other<br>Faiths'))
+levels(data$income) <- c('$10,000','$20,000','$30,000','$40,000','$50,000','$75,000','$100,000',
+                                '$150,000','$150,000 or more')
 numeric <- data.matrix(data)
 colnames(numeric) <- names(data)
 
@@ -133,31 +133,72 @@ person_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$sta
 #   annotate('text',x=1,y=2.1,label='Liberal Belief\nLiberal Politics') %>% ggplotly
 ```
 
-These questions are best able to differentiate the respondents into different camps. The shape fo the points has a slightly squashed look because there are more points in Conservative Belief/Conservative Politics and Liberal Belief/Liberal Politics than in the other categories. This implies that there is some connection between belief and politics, although it is not perfect. 
+These questions are best able to differentiate the respondents into different camps. The shape for the points has a slightly squashed look because there are more points in Conservative Belief/Conservative Politics and Liberal Belief/Liberal Politics than in the other categories. This implies that there is some connection between belief and politics, although it is not perfect. 
 
 We can use the other questions in the survey to analyze how people differ along their demographic background and political opinions, including religious denominations, age, income, government policies, and theological perspectives.
 
-First of all, we can look at the list of denominations to see how they all stack up against each other. We use a question from the survey that tracked a considerable number of different denominations, including evangelical and mainline protestants. We plot each of these categories on our chart to see how they stand relative to all the respondents.
+First of all, we can look at the list of religious groups to see how they all stack up against each other. We use a question from the survey that tracked a considerable number of religious categories so that we can look at evangelical Christians compared others. We plot each of these categories on our chart to see how they stand relative to all the respondents. The plot below shows the scores on the first dimensions, religious belief, for several different denominations and religious categories. 
 
-```{r}
-all_coefs <- coef(model)
+```{r reltrade, echo=FALSE, message=FALSE, warning=FALSE}
+# Need to use the same rotation as the person scores
+all_coefs <- coef(model,rotate='oblimin')
 
 all_coefs$GroupPars <- NULL
 
 ordinal_coefs <- all_coefs[item_types=='graded' | item_types=='2PL']
 nominal_coefs <- all_coefs[item_types=='nominal']
-ordinal_coefs <- lapply(ordinal_coefs,function(x) {
-  x <- x[grepl(pattern='a[0-9]',x=attr(x,'dimnames')[[2]])]
-  return(x)})
+# ordinal_coefs <- lapply(ordinal_coefs,function(x) {
+#   x <- x[grepl(pattern='a[0-9]',x=attr(x,'dimnames')[[2]])]
+#   return(x)})
 
 reltrad_slope <-  nominal_coefs$RELTRAD[grepl(pattern='a[0-9]',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
 reltrad_coefs <- nominal_coefs$RELTRAD[grepl(pattern='ak[0-9]+',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
-reltrad_labels <- levels(data$RELTRAD)[3:length(levels(data$RELTRAD))]
+reltrad_labels <- levels(data$RELTRAD)[2:length(levels(data$RELTRAD))]
 reltrad_data <- data_frame(dim1=reltrad_slope[[1]]*reltrad_coefs[reltrad_coefs!=0],
                            dim2=reltrad_slope[[2]]*reltrad_coefs[reltrad_coefs!=0],
                         labels=reltrad_labels)
 
 
-reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'))
+reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'), yaxis=list(title=''),margin=list(l=100))
+```
+
+This plot should be interpreted with caution because it is using a limited number of questions to differentiate respondents along basic beliefs, such as belief in God and whether God's word is inspired. However, it is still interesting that Evangelical Protestants are closer to Muslims than they are to Mainline Protestants or even Jewish people. This graph does seem to capture some intuitive idea about how close and far different religious groups are, at least when it comes to belief in God and the relative proximity between religious groups. As the Catholic philosopher Peter Kreeft once joked,
+
+> I often find more mutual understanding between myself and a fundamentalist Southern Baptist who sincerely believes I am worshipping the great whore of Babylon and on my way to Hell, or with a Muslim who uncompromisingly rejects my belief that Christ is Lord as utter pagan blasphemy, than I find with some active Catholic laity, nuns, especially ex-nuns, priests and even bishops! 
+
+These differences reflect more cultural understanding of faith than they do deep issues of doctrine.
+
+Next we look at demographic factors. First, do people of varying incomes tend to cluster in certain categories? The chart below shows that income does not vary much along religious beliefs (the horizontal dimension), but rather mostly along the vertical dimension, political opinion. Again, this finding is not surprising given how we know that wealthier people in the United States tend to be more conservative.
+
+```{r regions,echo=FALSE}
+income_slope <-  ordinal_coefs$income[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
+income_coefs <- ordinal_coefs$income[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
+income_labels <- levels(data$income)[2:length(levels(data$income))]
+dims <- sapply(income_coefs, function(x) (-x*income_slope)/(sqrt(sum(income_slope^2))))
+income_data <- data_frame(dim1=dims[1,],
+                           dim2=dims[2,],
+                        labels=income_labels)
+
+
+ person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_markers(data=income_data,y=~dim2,x=~dim1,inherit=FALSE,name='Income Categories') %>% add_text(data=income_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom left')
+```
+
+Next we'll put education on the same plot so that we can look at income and education together.
+
+```{r}
+income_slope <-  ordinal_coefs$income[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
+income_coefs <- ordinal_coefs$income[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
+income_labels <- levels(data$income)[2:length(levels(data$income))]
+dims <- sapply(income_coefs, function(x) (-x*income_slope)/(sqrt(sum(income_slope^2))))
+income_data <- data_frame(dim1=dims[1,],
+                           dim2=dims[2,],
+                        labels=income_labels)
+
+
+ person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_markers(data=income_data,y=~dim2,x=~dim1,inherit=FALSE,name='Income Categories') %>% add_text(data=income_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom left')
 ```
 
