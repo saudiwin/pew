@@ -152,12 +152,13 @@ ordinal_coefs <- lapply(ordinal_coefs,function(x) {
 
 reltrad_slope <-  nominal_coefs$RELTRAD[grepl(pattern='a[0-9]',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
 reltrad_coefs <- nominal_coefs$RELTRAD[grepl(pattern='ak[0-9]+',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
-reltrad_labels <- levels(data$RELTRAD)[3:length(levels(data$RELTRAD))]
+reltrad_labels <- levels(data$RELTRAD)[2:length(levels(data$RELTRAD))]
 reltrad_data <- data_frame(dim1=reltrad_slope[[1]]*reltrad_coefs[reltrad_coefs!=0],
                            dim2=reltrad_slope[[2]]*reltrad_coefs[reltrad_coefs!=0],
                         labels=reltrad_labels)
 
 
-reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'))
+reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'),
+                                                                                                             yaxis=list(title=''))
 ```
 
