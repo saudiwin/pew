@@ -29,7 +29,8 @@ Dataset_Pew$RELTRAD <- recode_factor(Dataset_Pew$RELTRAD,'Other<br>Religions'="O
 levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Buddhist","Evangelical<br>Protestant","Mainline<br>Protestant",                           "Black<br>Protestant", "Catholic", "Mormon", "Orthodox<br>Christian", "Jehovah's Witness","Other<br>Christian","Jewish","Muslim","Hindu","Other<br>Faiths","None")
 
 Dataset_Pew$income <- str_extract(as.character(as_factor(Dataset_Pew$income)),pattern = '\\$[1-9]+.+')
-Dataset_Pew$income <- as.factor(Dataset_Pew$income)
+Dataset_Pew$income <- as_factor(Dataset_Pew$income)
+levels(Dataset_Pew$qi2g) <- c('Never','Seldom', 'Several times a year','Once or twice a month','At least once a week')
 
 data <- Dataset_Pew
 
@@ -37,20 +38,12 @@ data <- Dataset_Pew
 
 weights <- Dataset_Pew$WEIGHT
 
-
-
-
-
 # Keep variables
 
 data %<>% select(qi2g,qi2d,qi2b,qi2a,qi1,qh2,qh1,qg7b,qg7,qg6,qg5,qg1c,qg3,qg1,qg1b,qf2,
                  attend,born,racethn,marital,qb31,qb30,qb22,qb21,qb20,
                  qb21,qb22,qb20,qb2a,qb2c,qb2b,qb2d,qb1c,qb1b,qb1a,qa1,qi3,qp3rec,educ,agerec,
                  qm5a,qm5b,qm5d,qm5e,qm5f,qm5g,party,ideo,income,RELTRAD)
-
-data %<>% mutate_all(as_factor) %>% mutate_all(as.character)
-
-data %<>% mutate_all(funs(ifelse(grepl(x=.,pattern="VOL|NaN|[Dd]on't [Kk]now|[Rr]efused|Undesignated|Did Not Report"),NA,.)))
 
 ordinal_vars <- c('qi2g','qi2d','qi2b','qi2a','qi1','qg1b','qf2','attend','qb22','qb21','qb1c',
                   'qb1b','qb1a','qa1','educ','agerec','ideo','income')
@@ -64,24 +57,50 @@ all_vars <- c(ordinal_vars,binary_vars,nominal_vars)
 
 data %<>% select(one_of(c(ordinal_vars,binary_vars,nominal_vars)))
 
+data %<>% as_factor('labels')
+
+keep_labels <- lapply(data,levels)
+
+data %<>% mutate_all(funs(ifelse(grepl(x=.,pattern="VOL|NaN|[Dd]on't [Kk]now|[Rr]efused|Undesignated|Did Not Report"),NA,.)))
+
+keep_labels <- lapply(keep_labels,function(x) {
+  x[!grepl(x=x,pattern="VOL|NaN|[Dd]on't [Kk]now|[Rr]efused|Undesignated|Did Not Report")]
+})
+keep_names <- names(data)
+data <-  lapply(1:length(names(data)),function(x) {
+  this_col <- data[[x]]
+  this_col <- factor(this_col,labels=keep_labels[[x]])
+  return(this_col)
+})
+names(data) <- keep_names
+data %<>% as_data_frame
+
 item_types <- c(rep('graded',length(ordinal_vars)),
                 rep('2PL',length(binary_vars)),
                 rep('nominal',length(nominal_vars)))
 
-data %<>% mutate_all(as.factor)
-
 data %<>% mutate(RELTRAD = relevel(RELTRAD,'Other<br>Faiths'))
 levels(data$income) <- c('$10,000','$20,000','$30,000','$40,000','$50,000','$75,000','$100,000',
                                 '$150,000','$150,000 or more')
-levels(data$educ) <- c("Less than high school (Grades 1-8 or no formal schooling)",
+
+data$educ <- factor(data$educ,levels= c("Less than high school (Grades 1-8 or no formal schooling)",
                        "High school incomplete (Grades 9-11 or Grade 12 with NO diploma)",
                        "High school graduate (Grade 12 with diploma or GED certificate)",
                        "Some college, no degree (includes some community college)",
                        "Two year associate degree from a college or university",
                        "Four year college or university degree/Bachelor's degree (e.g., BS, BA, AB)",
                        "Some postgraduate or professional schooling, no postgraduate degree (e.g. some graduate school)",
-                       "Postgraduate or professional degree, including master's, doctorate, medical or law degree (e.g., MA, MS, PhD, MD...)")
-data$educ <- factor(data$educ,labels=c('Middle School','Some HS','HS Grad','Some College','2-yr Degree','4-yr Degree','Some Grad School','Grad Degree'))
+                       "Postgraduate or professional degree, including master's, doctorate, medical or law degree (e.g., MA, MS, PhD, MD...)"),
+                    labels=c('Middle School','Some HS','HS Grad','Some College','2-yr Degree','4-yr Degree','Some Grad School','Grad Degree'))
+
+#One of the questions has very odd question order, need to change to make fully ordinal
+
+data$qb1a <- factor(data$qb1a,levels=c("Change for the better","Hasn't made much difference",
+                                       "Change for the worse"))
+data$qb1b <- factor(data$qb1b,levels=c("Change for the better","Hasn't made much difference",
+                                       "Change for the worse"))
+data$qb1c <- factor(data$qb1c,levels=c("Change for the better","Hasn't made much difference",
+                                       "Change for the worse"))
 
 numeric <- data.matrix(data)
 colnames(numeric) <- names(data)
@@ -96,32 +115,32 @@ person_scores <- fscores(model) %>% as_data_frame
 
 This recent election season exposed deep divides within Christians from different denominations. We still don't have good data on exactly how Christians voted--exit polls are not reliable or useful for this question--but it is clear that there are substantial differences among Christians of different ages, churches and ethnicities. In particular, a lot of attention in the media centered on U.S. evangelical Christians, a very broad term that nonetheless is a good predictor of how people vote in elections.
 
-I wanted to look more concretely at the question of what an evangelical Christian is. Instead of defining the term by what an evangelical Christian should be, I examined the question from the perspective of what American ssay about themselves. The best data source for this question are the Pew surveys on religion and politics, the most recent of which was [just released](http://www.pewforum.org/religious-landscape-study/). Although the survey dates from 2014, it is the best available evidence because it used a very large sample--over 30,000 respondents--and contained a battery of questions concerning both religious and political views. For that reason, it is ideal for understanding what it means to be evangelical.
+I wanted to look more concretely at the question of what an evangelical Christian is. Instead of defining the term by what an evangelical Christian should be, I examined the question from the perspective of what American say about themselves. The best data source for this question are the Pew surveys on religion and politics, the most recent of which was [just released](http://www.pewforum.org/religious-landscape-study/). Although the survey dates from 2014, it is the best available evidence because it used a very large sample--over 30,000 respondents--and contained a battery of questions concerning both religious and political views. For that reason, it is ideal for understanding what it means to be evangelical.
 
-There are different ways of slicing and dicing this survey. We could, for example, take the question from the survey that asks people if they are evangelical Christians, and then restrict our focus to only this group. However, the evangelical label has been stretched and challenged by so many people that it seems can describe people with remarkably contrasting beliefs. 
+There are different ways of slicing and dicing this survey. We could, for example, take the question from the survey that asks people if they are evangelical Christians, and then restrict our focus to only this group. However, the evangelical label has been stretched and challenged by so many people that it seems it can describe people with remarkably contrasting beliefs. 
 
 Instead, I used a statistical model^[I used the R package mirt to estimate a 2PL item-response theory model. The full code is available in the code folder of our website's Github at (http://www.github.com/saudiwin/saudiwin.github.io). The model includes sampling weights to account for the sampling design.] to collapse the survey's questions down to two dimensions. I didn't know ahead of time what dimensions these would be, although I suspected that it would collapse to a left-right political scale and a conservative-liberal theology scale. The data analysis largely confirms my prior suspicions. The table below shows the three questions that best explained each of the two dimensions:
 
     Dimension 1                                       Dimension 2
-----------------------------------------        ------------------------------------------- 
-Do you believe in God?                            Do you prefer small or big government?
-Is the Bible the Word of God?                     Are you a citizen of the United States?
-How important is religion in your life?           Do you read the Bible literally?
-Do you believe in heaven?                         Do churches focus too much on rules?        
+-----------------------------------------------   --------------------------------------------
+Do you believe in God or a universal spirit?          Do you prefer small or big government?
+How important is religion in your life?               Does government aid to the poor do more harm than good?
+Is the Bible the Word of God?                         Are you conservative/moderate/liberal?
+Should homosexuality be accepted by society?          Should homosexuality be accepted by society?
 
-We label the first dimension as religious belief and the second dimension as political opinions. The first appears to measure the difference between secular-liberal and conservative religious beliefs, particularly between Christians and others. The top question for the second dimension on a standard difference between the political left and the political right: the size of government. The second question, about whether the respondent is a US citizen, clearly identifies political differences. The final two questions are interesting because we think of them as religious questions, but they could be interpreted as implying religious attitudes that tend to be political. For example, depending on what reading the Bible "literally" means, a respondent's political views may be more or less guided by passages from the Bible that talk about politics. Perhaps churches and rules refers to respondents who are very libertarian. However, this is just speculation, and it's important not to over-interpret the results of the model.
+I decided to label the first dimension as religious belief and the second dimension as political opinions. The first appears to measure the difference between secular-liberal and conservative religious beliefs, such as whether a person believes in God and believes that the Bible is the Word of God. The top question for the second dimension reflects a fundamental divide between the political left and the political right: the size of government. Similarly, the second-most divisive political question concerns a perennial debate over the welfare state and whether the government should be involved. What is interesting to note is that the question about homosexuality discriminates on *both* dimensions. Knowing someone's views about homosexuality communicates information about both their religious and political beliefs, so we will certainly examine this question to understand how it fits in the picture.
 
-The plot below shows respondents plotted along these dimensions. We can see from the general shape of the points that there are more people who tend to have conservative beliefs with conservative politics and vice versa. However there are a fair number of people who mix and match these kinds of beliefs and politics.
+The plot below shows respondents plotted along these dimensions. We can see from the general shape of the points that there is an oblong, Milky Way galaxy-type shape. This is because people tend to cluster in the top left, liberal religion and liberal politics, and on the bottom right, which is conservative religion and conservative politics. However, there are people who mix and match these beliefs, as they fall into the other two cells. People who are at the exact center and very difficult to classify using either dimension.
 
 ```{r factor_plot, echo=FALSE}
 #Use only 1500 points for better plotting
 a <- list(
-  x = c(1.75,-2,-2.5,1),
-  y = c(-2.1,-2.3,2,2.3),
-  text = c('Liberal Belief<br>Conservative Politics',
-           'Conservative Belief<br>Conservative Politics',
-           'Conservative Belief<br>Liberal Politics',
-           'Liberal Belief<br>Liberal Politics'),
+  x = c(3.3,-3.6,0,0),
+  y = c(0,0,2.6,-2.8),
+  text = c('Conservative<br>Religion',
+           'Liberal<br>Religion',
+           'Liberal<br>Politics',
+           'Conservative<br>Politics'),
   xref = 'x',
   yref = "y",
   showarrow = FALSE,
@@ -129,18 +148,12 @@ a <- list(
   ay = 0
 )
 
-person_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$state),'<br>','Age: ',as_factor(Dataset_Pew$agerec),'<br>Income: ',Dataset_Pew$income),
+person_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$state),'<br>','Age: ',data$agerec,'<br>Income: ',data$income,'<br>Education: ',data$educ),
                           region=as_factor(Dataset_Pew$cregion))
 
  person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels,hoverinfo='text') %>% add_markers() %>% 
   layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
          yaxis=list(title='Political Opinion',showticklabels = FALSE)) 
-#   
-#   ggplot(aes(y=F2,x=F1)) + geom_hline(yintercept=0,colour='grey') +
-#   geom_vline(xintercept=0,colour='grey') + geom_point(colour='dark blue') + theme_minimal() + xlab('Religious Belief') + ylab('Political Opinion')  + annotate('text',x=1.75,y=-2.1,label='Liberal Belief\nConservative Politics') + 
-#   annotate('text',x=-2,y=-2.2,label='Conservative Belief\nConservative Politics') +
-# annotate('text',x=-2.5,y=2,label='Conservative Belief\nLiberal Politics') +
-#   annotate('text',x=1,y=2.1,label='Liberal Belief\nLiberal Politics') %>% ggplotly
 ```
 
 These questions are best able to differentiate the respondents into different camps. The shape for the points has a slightly squashed look because there are more points in Conservative Belief/Conservative Politics and Liberal Belief/Liberal Politics than in the other categories. This implies that there is some connection between belief and politics, although it is not perfect. 
@@ -167,8 +180,6 @@ reltrad_labels <- levels(data$RELTRAD)[2:length(levels(data$RELTRAD))]
 reltrad_data <- data_frame(dim1=reltrad_slope[[1]]*reltrad_coefs[reltrad_coefs!=0],
                            dim2=reltrad_slope[[2]]*reltrad_coefs[reltrad_coefs!=0],
                         labels=reltrad_labels)
-reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'),
-                                                                                                             yaxis=list(title=''))
 reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'), yaxis=list(title=''),margin=list(l=100))
 ```
 
@@ -198,7 +209,7 @@ text_data <- data_frame(dim1=dims[1,],dim2=dims[2,],labels=income_labels)
 
  person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
   layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
-         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=income_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Income Categories') %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom left')
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=income_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Income Categories') %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom right')
 ```
 
 Next we'll put education on the same plot so that we can look at income and education together. This plot validates some of what we know about education--more educated people tend to be more liberal--while in also says something new. In this plot, less-educated people tend to be less conservative in terms of belief than more-educated people. Of course, this should be interpreted with some caution because our definition of ``conservative belief" is somewhat broad. However, there does appear to be an interesting relationship between income and education. People who have more education are more liberal politically, while people with more income are more conservative politically. 
@@ -246,4 +257,5 @@ We can look at both simultaneously by putting the lines on the same chart so tha
                                                                              text=~categories) 
 ```
 
-Now we're going to dig deep into how people identify in terms of religion and what that says about their politics. 
+Now we're going to dig deep into how people identify in terms of religion and what that says about their politics. First, we'll look at responses to the question, ``How often do you share your faith with non-believers or people from other religious backgrounds?"
+
