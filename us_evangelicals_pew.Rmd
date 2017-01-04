@@ -13,6 +13,7 @@ require(mirt)
 require(tidyr)
 require(plotly)
 require(stringr)
+require(knitr)
 
 opts_chunk$set(fig.align='center')
 
@@ -257,5 +258,208 @@ Given these two differing effects of income and education, we can learn somethin
                                                                              text=~categories) 
 ```
 
-Now we're going to dig deep into how people identify in terms of religion and what that says about their politics. First, we'll look at responses to the question, ``How often do you share your faith with non-believers or people from other religious backgrounds?"
+Now we're going to dig deep into how people identify in terms of religion and what that says about their politics. First, we'll look at responses to the question, "How often do you share your faith with non-believers or people from other religious backgrounds?" We see that this question generally corresponds to what we know of religious belief: those who share their faith "once or twice a month or more" tend to also have more conservative beliefs. In addition, there is a slight leftward tilt to the lines, which implies that these people also tend to be more *liberal* politically. It's not a very strong relationship, but it is there, and it is quite interesting. Essentially, it means that people who share their faith a lot are in general more conservative in their religious beliefs. But when we look at people who are equally conservative in religious belief, those who share their faith more are also somewhat more liberal (or moderate) politically.
+```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+share_slope <-  ordinal_coefs$qi2g[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qi2g,'dimnames')[[2]])]
+share_coefs <- ordinal_coefs$qi2g[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$qi2g,'dimnames')[[2]])]
+share_labels <- levels(data$qi2g)[2:length(levels(data$qi2g))]
+dims <- sapply(share_coefs, function(x) (-x*share_slope)/(sqrt(sum(share_slope^2))))
 
+calc_points <- apply(dims,2,function(x) {
+  m <- (-x[1]/x[2])
+  b <- (-m*x[1]) + x[2]
+  points <- (seq(from=-2,to=2,length.out=100) - b)/m
+})
+share_data <- as_data_frame(calc_points)
+names(share_data) <- share_labels
+share_data$ypoints <- seq(from=-2,to=2,length.out=100)
+share_data <-  gather(share_data,categories,xpoints,-ypoints)
+to_choose <- floor(nrow(calc_points)/length(share_labels))
+plot_text <- sapply(1:length(share_labels),function(x) {
+  y <- calc_points[,x][(x*14)-13]
+  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
+  return(c(x,y))
+})
+
+text_data <- data_frame(dim1=plot_text[2,],
+                        dim2=plot_text[1,],
+                        labels=share_labels)
+
+
+person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=share_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='shareation',
+                                                                                     text=~categories) 
+```
+Another important part of faith is praying. The chart below shows the predicted lines for a question that asks respondents how often they pray. Again, we see that praying is a good indicator of whether someone is more conservative religiously. We also see the same, even slighter, leftward tilt, implying that regardless of belief, people who pray a lot will tilt (ever so slightly) liberal politically.
+
+```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+qi1_slope <-  ordinal_coefs$qi1[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qi1,'dimnames')[[2]])]
+qi1_coefs <- ordinal_coefs$qi1[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$qi1,'dimnames')[[2]])]
+qi1_labels <- levels(data$qi1)[2:length(levels(data$qi1))]
+dims <- sapply(qi1_coefs, function(x) (-x*qi1_slope)/(sqrt(sum(qi1_slope^2))))
+
+calc_points <- apply(dims,2,function(x) {
+  m <- (-x[1]/x[2])
+  b <- (-m*x[1]) + x[2]
+  points <- (seq(from=-2,to=2,length.out=100) - b)/m
+})
+qi1_data <- as_data_frame(calc_points)
+names(qi1_data) <- qi1_labels
+qi1_data$ypoints <- seq(from=-2,to=2,length.out=100)
+qi1_data <-  gather(qi1_data,categories,xpoints,-ypoints)
+to_choose <- floor(nrow(calc_points)/length(qi1_labels))
+plot_text <- sapply(1:length(qi1_labels),function(x) {
+  y <- calc_points[,x][(x*14)-13]
+  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
+  return(c(x,y))
+})
+
+text_data <- data_frame(dim1=plot_text[2,],
+                        dim2=plot_text[1,],
+                        labels=qi1_labels)
+
+
+person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=qi1_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qi1ation',
+                                                                                     text=~categories) 
+```
+Finally, let's look at how often people attend church (or place of worship), which is also a core component of all religions. These lines show an even more pronounced leftward tilt. This chart means that people who attend church are much more likely to be more conservative in their religious beliefs, but at the same time their political opinions are just a bit more liberal than fellow believers who don't attend church.
+
+```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+attend_slope <-  ordinal_coefs$attend[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$attend,'dimnames')[[2]])]
+attend_coefs <- ordinal_coefs$attend[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$attend,'dimnames')[[2]])]
+attend_labels <- levels(data$attend)[2:length(levels(data$attend))]
+dims <- sapply(attend_coefs, function(x) (-x*attend_slope)/(sqrt(sum(attend_slope^2))))
+
+calc_points <- apply(dims,2,function(x) {
+  m <- (-x[1]/x[2])
+  b <- (-m*x[1]) + x[2]
+  points <- (seq(from=-2,to=2,length.out=100) - b)/m
+})
+attend_data <- as_data_frame(calc_points)
+names(attend_data) <- attend_labels
+attend_data$ypoints <- seq(from=-2,to=2,length.out=100)
+attend_data <-  gather(attend_data,categories,xpoints,-ypoints)
+to_choose <- floor(nrow(calc_points)/length(attend_labels))
+plot_text <- sapply(1:length(attend_labels),function(x) {
+  y <- calc_points[,x][(x*14)-13]
+  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
+  return(c(x,y))
+})
+
+text_data <- data_frame(dim1=plot_text[2,],
+                        dim2=plot_text[1,],
+                        labels=attend_labels)
+
+
+person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=attend_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='attendation',
+                                                                                     text=~categories) 
+```
+Now that we've diagnosed the very interesting relationship between religious belief and religious practice, we can look at divisive political and religious questions that were asked respondents. First, we'll use a question that measures the exclusivity of people's religious commitments. This question asked, "is your religion the one, true faith leading to eternal life, or can many religions lead to eternal life?" We only put one line on the chart below because this is a simple yes/no question. Those to the right of the line said that their religion is exclusive, while those to the left said that many religions can lead to eternal life. This question does not tell us much, if anything, about someone's political views, but it does clearly delineate those who are very conservative in their religious beliefs from those who aren't.
+
+```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+qh1_slope <-  ordinal_coefs$qh1[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qh1,'dimnames')[[2]])]
+qh1_coefs <- ordinal_coefs$qh1[grepl(pattern='d',x=attr(ordinal_coefs$qh1,'dimnames')[[2]])]
+qh1_labels <- levels(data$qh1)[2:length(levels(data$qh1))]
+dims <- sapply(qh1_coefs, function(x) (-x*qh1_slope)/(sqrt(sum(qh1_slope^2))))
+
+calc_points <- apply(dims,2,function(x) {
+  m <- (-x[1]/x[2])
+  b <- (-m*x[1]) + x[2]
+  points <- (seq(from=-2,to=2,length.out=100) - b)/m
+})
+qh1_data <- as_data_frame(calc_points)
+names(qh1_data) <- qh1_labels
+qh1_data$ypoints <- seq(from=-2,to=2,length.out=100)
+qh1_data <-  gather(qh1_data,categories,xpoints,-ypoints)
+to_choose <- floor(nrow(calc_points)/length(qh1_labels))
+plot_text <- sapply(1:length(qh1_labels),function(x) {
+  y <- calc_points[,x][(x*14)-13]
+  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
+  return(c(x,y))
+})
+
+text_data <- data_frame(dim1=plot_text[2,],
+                        dim2=plot_text[1,],
+                        labels=qh1_labels)
+
+
+person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=qh1_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qh1ation',
+                                                                                     text=~categories) 
+```
+
+We first look at the question on homosexuality, which we know is very divisive on both dimensions. This question asked respondents, "should homosexuality be discouraged by society?" Unlike religious practice, this question has a strong rightward tilt. This means that those who think homosexuality should be discouraged are more likely to be conservative politically and religiously. This question would appear to exemplify the divide between the groups that match conservative religious beliefs to conservative politics and vice versa.
+
+```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+qb2a_slope <-  ordinal_coefs$qb2a[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qb2a,'dimnames')[[2]])]
+qb2a_coefs <- ordinal_coefs$qb2a[grepl(pattern='d',x=attr(ordinal_coefs$qb2a,'dimnames')[[2]])]
+qb2a_labels <- levels(data$qb2a)[2:length(levels(data$qb2a))]
+dims <- sapply(qb2a_coefs, function(x) (-x*qb2a_slope)/(sqrt(sum(qb2a_slope^2))))
+
+calc_points <- apply(dims,2,function(x) {
+  m <- (-x[1]/x[2])
+  b <- (-m*x[1]) + x[2]
+  points <- (seq(from=-2,to=2,length.out=100) - b)/m
+})
+qb2a_data <- as_data_frame(calc_points)
+names(qb2a_data) <- qb2a_labels
+qb2a_data$ypoints <- seq(from=-2,to=2,length.out=100)
+qb2a_data <-  gather(qb2a_data,categories,xpoints,-ypoints)
+to_choose <- floor(nrow(calc_points)/length(qb2a_labels))
+plot_text <- sapply(1:length(qb2a_labels),function(x) {
+  y <- calc_points[,x][(x*14)-13]
+  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
+  return(c(x,y))
+})
+
+text_data <- data_frame(dim1=plot_text[2,],
+                        dim2=plot_text[1,],
+                        labels=qb2a_labels)
+
+
+person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=qb2a_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2aation',
+                                                                                     text=~categories) 
+```
+
+While homosexuality is a social question with clear religious and political connotations, we can look at whether other political questions are similarly divisive along religious lines. The question below asks respondents whether they think government aid to the poor does more harm than good. The slant on this line is similar to the question on homosexuality, though not as steep. People who believe that the government aid to the poor harms the poor are more likely to be conservative religiously and politically, although the relationship with religion is much weaker. It is also interesting that this line goes straight through the middle of the chart. Those who aren't sure about whether aid does more harm or good are also those who are politically moderates.
+
+```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+qb2b_slope <-  ordinal_coefs$qb2b[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qb2b,'dimnames')[[2]])]
+qb2b_coefs <- ordinal_coefs$qb2b[grepl(pattern='d',x=attr(ordinal_coefs$qb2b,'dimnames')[[2]])]
+qb2b_labels <- levels(data$qb2b)[2:length(levels(data$qb2b))]
+dims <- sapply(qb2b_coefs, function(x) (-x*qb2b_slope)/(sqrt(sum(qb2b_slope^2))))
+
+calc_points <- apply(dims,2,function(x) {
+  m <- (-x[1]/x[2])
+  b <- (-m*x[1]) + x[2]
+  points <- (seq(from=-2,to=2,length.out=100) - b)/m
+})
+qb2b_data <- as_data_frame(calc_points)
+names(qb2b_data) <- qb2b_labels
+qb2b_data$ypoints <- seq(from=-2,to=2,length.out=100)
+qb2b_data <-  gather(qb2b_data,categories,xpoints,-ypoints)
+to_choose <- floor(nrow(calc_points)/length(qb2b_labels))
+plot_text <- sapply(1:length(qb2b_labels),function(x) {
+  y <- calc_points[,x][(x*14)-13]
+  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
+  return(c(x,y))
+})
+
+text_data <- data_frame(dim1=plot_text[2,],
+                        dim2=plot_text[1,],
+                        labels=qb2b_labels)
+
+
+person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
+         yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=qb2b_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2bation',
+                                                                                     text=~categories) 
+```
