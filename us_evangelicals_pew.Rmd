@@ -14,6 +14,8 @@ require(tidyr)
 require(plotly)
 require(stringr)
 
+opts_chunk$set(fig.align='center')
+
 set.seed(111379)
 
 Dataset_Pew <- read_sav("Dataset - Pew Research Center 2014 Religious Landscape Study National Telephone Survey - Version 1.1 - December 1 2016.sav")
@@ -26,7 +28,7 @@ levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Evangelical<br>Protestant","Mainl
 
 Dataset_Pew$RELTRAD <- recode_factor(Dataset_Pew$RELTRAD,'Other<br>Religions'="Other<br>Faiths")
 
-levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Buddhist","Evangelical<br>Protestant","Mainline<br>Protestant",                           "Black<br>Protestant", "Catholic", "Mormon", "Orthodox<br>Christian", "Jehovah's Witness","Other<br>Christian","Jewish","Muslim","Hindu","Other<br>Faiths","None")
+levels(Dataset_Pew$RELTRAD) <- c("Don't Know","Buddhist","Evangelical<br>Protestant","Mainline<br>Protestant",                           "Black<br>Protestant", "Catholic", "Mormon", "Orthodox<br>Christian", "Jehovah's<br>Witness","Other<br>Christian","Jewish","Muslim","Hindu","Other<br>Faiths","None")
 
 Dataset_Pew$income <- str_extract(as.character(as_factor(Dataset_Pew$income)),pattern = '\\$[1-9]+.+')
 Dataset_Pew$income <- as_factor(Dataset_Pew$income)
@@ -130,17 +132,17 @@ Should homosexuality be accepted by society?          Should homosexuality be ac
 
 I decided to label the first dimension as religious belief and the second dimension as political opinions. The first appears to measure the difference between secular-liberal and conservative religious beliefs, such as whether a person believes in God and believes that the Bible is the Word of God. The top question for the second dimension reflects a fundamental divide between the political left and the political right: the size of government. Similarly, the second-most divisive political question concerns a perennial debate over the welfare state and whether the government should be involved. What is interesting to note is that the question about homosexuality discriminates on *both* dimensions. Knowing someone's views about homosexuality communicates information about both their religious and political beliefs, so we will certainly examine this question to understand how it fits in the picture.
 
-The plot below shows respondents plotted along these dimensions. We can see from the general shape of the points that there is an oblong, Milky Way galaxy-type shape. This is because people tend to cluster in the top left, liberal religion and liberal politics, and on the bottom right, which is conservative religion and conservative politics. However, there are people who mix and match these beliefs, as they fall into the other two cells. People who are at the exact center and very difficult to classify using either dimension.
+The plot below shows respondents plotted along these dimensions. We can see from the general shape of the points that there is an oblong, Milky Way galaxy-type shape. This is because people tend to cluster in the top left, liberal religion and liberal politics, and on the bottom right, which is conservative religion and conservative politics. However, there are people who mix and match these beliefs, as they fall into the other two cells. People who are at the exact center are very difficult to classify using either dimension. These are the special cupcakes in the population: they don't conform to our simplistic analysis of religion and politics. But for a large number of Americans, these two dimensions do tell us a lot.
 
 ```{r factor_plot, echo=FALSE}
 #Use only 1500 points for better plotting
 a <- list(
-  x = c(3.3,-3.6,0,0),
+  x = c(3.3,-3.6,0,-.25),
   y = c(0,0,2.6,-2.8),
   text = c('Conservative<br>Religion',
            'Liberal<br>Religion',
-           'Liberal<br>Politics',
-           'Conservative<br>Politics'),
+           'Liberal Politics',
+           'Conservative Politics'),
   xref = 'x',
   yref = "y",
   showarrow = FALSE,
@@ -152,15 +154,13 @@ person_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$sta
                           region=as_factor(Dataset_Pew$cregion))
 
  person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels,hoverinfo='text') %>% add_markers() %>% 
-  layout(annotations=a,xaxis=list(title='Religious Belief',showticklabels = FALSE),
-         yaxis=list(title='Political Opinion',showticklabels = FALSE)) 
+  layout(annotations=a,xaxis=list(showticklabels = FALSE),
+         yaxis=list(showticklabels = FALSE)) 
 ```
-
-These questions are best able to differentiate the respondents into different camps. The shape for the points has a slightly squashed look because there are more points in Conservative Belief/Conservative Politics and Liberal Belief/Liberal Politics than in the other categories. This implies that there is some connection between belief and politics, although it is not perfect. 
 
 We can use the other questions in the survey to analyze how people differ along their demographic background and political opinions, including religious denominations, age, income, government policies, and theological perspectives.
 
-First of all, we can look at the list of religious groups to see how they all stack up against each other. We use a question from the survey that tracked a considerable number of religious categories so that we can look at evangelical Christians compared others. We plot each of these categories on our chart to see how they stand relative to all the respondents. The plot below shows the scores on the first dimensions, religious belief, for several different denominations and religious categories. 
+First of all, we can look at the list of religious groups to see how they all stack up against each other. We use a question from the survey that tracked a considerable number of religious categories so that we can look at evangelical Christians compared others. We plot each of these categories on our chart to see how they stand relative to all the respondents. The chart below shows the scores on the first dimensions, religious belief, for several different denominations and religious categories. 
 
 ```{r reltrade, echo=FALSE, message=FALSE, warning=FALSE}
 # Need to use the same rotation as the person scores
@@ -187,11 +187,11 @@ This plot should be interpreted with caution because it is using a limited numbe
 
 > I often find more mutual understanding between myself and a fundamentalist Southern Baptist who sincerely believes I am worshipping the great whore of Babylon and on my way to Hell, or with a Muslim who uncompromisingly rejects my belief that Christ is Lord as utter pagan blasphemy, than I find with some active Catholic laity, nuns, especially ex-nuns, priests and even bishops! 
 
-These differences reflect more cultural understanding of faith than they do deep issues of doctrine.
+These differences reflect a more cultural understanding of faith than they do deep issues of doctrine.
 
-Next we look at demographic factors. First, do people of varying incomes tend to cluster in certain categories? The chart below shows that income does not vary much along religious beliefs (the horizontal dimension), but rather mostly along the vertical dimension, political opinion. Again, this finding is not surprising given how we know that wealthier people in the United States tend to be more conservative. It should be noted too, that these lines are just estimates--it is most likely that people in these income categories will fall in between these lines, but you can find plenty of respondents on the plot that don't fall into these neat buckets.
+Next we look at demographic factors. First, do people of varying incomes tend to cluster in certain categories? The chart below shows that income does not vary much along religious beliefs (the horizontal dimension), but rather mostly along the vertical dimension, political opinion. Again, this finding is not surprising given how we know that wealthier people in the United States tend to be more conservative. It should be noted too, that these lines are just estimates--it is most likely that people in these income categories will fall in between these lines, but you can find plenty of respondents on the plot that don't fall into these neat buckets. What it does tell us is that, regardless of anything else, including religious belief, wealthier people are more conservative. On the other hand, we don't know whether a wealthy person is necessarily more or less conservative when it comes to religion: there are both conservative and liberal wealthy respondents.
 
-```{r regions,echo=FALSE}
+```{r regions,echo=FALSE,fig.align='center'}
 income_slope <-  ordinal_coefs$income[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
 income_coefs <- ordinal_coefs$income[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
 income_labels <- levels(data$income)[2:length(levels(data$income))]
@@ -212,7 +212,7 @@ text_data <- data_frame(dim1=dims[1,],dim2=dims[2,],labels=income_labels)
          yaxis=list(title='Political Opinion',showticklabels = FALSE)) %>% add_lines(data=income_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Income Categories') %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom right')
 ```
 
-Next we'll put education on the same plot so that we can look at income and education together. This plot validates some of what we know about education--more educated people tend to be more liberal--while in also says something new. In this plot, less-educated people tend to be less conservative in terms of belief than more-educated people. Of course, this should be interpreted with some caution because our definition of ``conservative belief" is somewhat broad. However, there does appear to be an interesting relationship between income and education. People who have more education are more liberal politically, while people with more income are more conservative politically. 
+Next we'll look at education. This chart shows that the effect education is very different from income--while income tells us how politically conservative or liberal someone is, education is much more likely to tell us how conservative or liberal their religion is. There are people who are politically conservative who are well-educated, but at the same time these same people also tend to be more liberal in terms of their beliefs.
 
 ```{r}
 educ_slope <-  ordinal_coefs$educ[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$educ,'dimnames')[[2]])]
@@ -248,7 +248,7 @@ text_data <- data_frame(dim1=plot_text[2,],
  # %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom left')
 ```
 
-We can look at both simultaneously by putting the lines on the same chart so that we can divide up ou respondents into little boxes. (Yes, we are literally putting people in boxes). Nowe we have a bunch of pick-up sticks laid on top of our chart. While it is a bit too much to absorb, it shows how income and education have a complicated interaction when it comes to people's religious and political beliefs. To give just one interesting interpretation, there is a big box of people who have a very high income (more than $150K) but low education (high school or less). These people tend to have very conservative politics but their religious beliefs are moderate or even liberal. On the flip side, the box with people with high income and high education shows that they are more liberal politically, although they also have more conservative beliefs. In other words, people are complicated.
+Given these two differing effects of income and education, we can learn something by putting the lines onto the same plot, making cross-hatch. (Yes, we are literally putting people in boxes). Now we have a bunch of pick-up sticks laid on top of our chart. While it is a bit too much to absorb, it shows how income and education have a complicated interaction when it comes to people's religious and political beliefs. To give just one interesting interpretation, there is a big box of people who have a very high income (more than $150K) but low education (high school or less). These people tend to have very conservative politics but their religious beliefs are more conservative. On the flip side, the box with people with high income and high education shows that they are more liberal politically, although they also have more conservative beliefs. In other words, people are complicated, and we can't always know people's beliefs just by knowing only their education or income.
 
 ```{r,echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
  person_scores %>% sample_n(1500) %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
