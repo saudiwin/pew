@@ -1,6 +1,7 @@
 ---
-title: "Who Are US Evangelical Christians?"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
 
 ```{r setup, include=FALSE}
@@ -14,6 +15,8 @@ require(tidyr)
 require(plotly)
 require(stringr)
 require(knitr)
+
+source('calc_points_func_V3.R')
 
 opts_chunk$set(fig.align='center')
 
@@ -115,11 +118,13 @@ person_scores <- fscores(model) %>% as_data_frame
 
 #Need to calculate the min/max points for plotting
 #We don't need to use all the scores for these calculations, just a sample
-sample_scores <- sample_n(person_scores,1500)
+rows_use <- sample(1:nrow(person_scores),1500)
+sample_scores <- slice(person_scores,rows_use)
+sample_data <- slice(data,rows_use)
+sample_Dataset <- slice(Dataset_Pew,rows_use)
 #We need to know min/max on all dimensions for plotting the lines correctly
 matrix_scores <- as.matrix(sample_scores)
-rectangle_scores <- rbind(sample_scores[,])
-  c(min(sample_scores$F1),max(sample_scores$F1),
+rectangle_scores <- c(min(sample_scores$F1),max(sample_scores$F1),
                       min(sample_scores$F2),max(sample_scores$F2))
 names(rectangle_scores) <- c('min_x','max_x','min_y','max_y')
 
@@ -150,11 +155,11 @@ I decided to label the first dimension as religious belief and the second dimens
 
 The plot below shows respondents plotted along these dimensions. We can see from the general shape of the points that there is an oblong, Milky Way galaxy-type shape. This is because people tend to cluster in the top left, liberal religion and liberal politics, and on the bottom right, which is conservative religion and conservative politics. However, there are people who mix and match these beliefs, as they fall into the other two cells. People who are at the exact center are very difficult to classify using either dimension. These are the special cupcakes in the population: they don't conform to our simplistic analysis of religion and politics. But for a large number of Americans, these two dimensions do tell us a lot.
 
-```{r factor_plot, echo=FALSE,warning=FALSE,message=FALSE}
+```{r factor_plot, echo=FALSE,warning=FALSE,message=FALSE,fig.width=8.5,fig.height=6}
 #Use only 1500 points for better plotting
 a <- list(
-  x = c(3.3,-3.6,0,-.25),
-  y = c(0,0,2.6,-2.8),
+  x = c(rectangle_scores[['max_x']]+.5,rectangle_scores[['min_x']]-.5,0,-.25),
+  y = c(0,0,rectangle_scores[['max_y']]+.6,rectangle_scores[['min_y']]-.6),
   text = c('Conservative<br>Religion',
            'Liberal<br>Religion',
            'Liberal Politics',
@@ -166,25 +171,25 @@ a <- list(
   ay = 0
 )
 
-sample_scores %<>% mutate(data_labels=paste0('State: ',as_factor(Dataset_Pew$state),'<br>','Age: ',data$agerec,'<br>Income: ',data$income,'<br>Education: ',data$educ),
-                          region=as_factor(Dataset_Pew$cregion))
+sample_scores %<>% mutate(data_labels=paste0('State: ',as_factor(sample_Dataset$state),'<br>','Age: ',sample_data$agerec,'<br>Income: ',sample_data$income,'<br>Education: ',sample_data$educ),
+                          region=as_factor(sample_Dataset$cregion))
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,hoverinfo='text') %>% add_markers() %>% 
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens',hoverinfo='text') %>% add_markers() %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
          yaxis=list(title="",showticklabels = FALSE)) 
 ```
+
 
 We can use the other questions in the survey to analyze how people differ along their demographic background and political opinions, including religious denominations, age, income, government policies, and theological perspectives.
 
 First of all, we can look at the list of religious groups to see how they all stack up against each other. We use a question from the survey that tracked a considerable number of religious categories so that we can look at evangelical Christians compared others. We plot each of these categories on our chart to see how they stand relative to all the respondents. The chart below shows the scores on the first dimensions, religious belief, for several different denominations and religious categories. 
 
-```{r reltrade, echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r reltrade, echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 
 ordinal_coefs <- all_coefs[item_types=='graded' | item_types=='2PL']
 nominal_coefs <- all_coefs[item_types=='nominal']
-# ordinal_coefs <- lapply(ordinal_coefs,function(x) {
-#   x <- x[grepl(pattern='a[0-9]',x=attr(x,'dimnames')[[2]])]
-#   return(x)})
+
 
 reltrad_slope <-  nominal_coefs$RELTRAD[grepl(pattern='a[0-9]',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
 reltrad_coefs <- nominal_coefs$RELTRAD[grepl(pattern='ak[0-9]+',x=attr(nominal_coefs$RELTRAD,'dimnames')[[2]])]
@@ -192,7 +197,7 @@ reltrad_labels <- levels(data$RELTRAD)[2:length(levels(data$RELTRAD))]
 reltrad_data <- data_frame(dim1=reltrad_slope[[1]]*reltrad_coefs[reltrad_coefs!=0],
                            dim2=reltrad_slope[[2]]*reltrad_coefs[reltrad_coefs!=0],
                         labels=reltrad_labels)
-reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'), yaxis=list(title=''),margin=list(l=100))
+reltrad_data %>% plot_ly(type='bar',x=~dim1,y=~reorder(labels,dim1),orientation='h',text=~labels) %>% layout(xaxis=list(title='Religous Belief (Conservative to Liberal)'), yaxis=list(title=''),margin=list(l=100),title='Relative Position of Belief in Religious Communities')
 ```
 
 This plot should be interpreted with caution because it is using a limited number of questions to differentiate respondents along basic beliefs, such as belief in God and whether God's word is inspired. However, it is still interesting that Evangelical Protestants are closer to Muslims than they are to Mainline Protestants or even Jewish people. This graph does seem to capture some intuitive idea about how close and far different religious groups are, at least when it comes to belief in God and the relative proximity between religious groups. As the Catholic philosopher Peter Kreeft once joked,
@@ -201,288 +206,312 @@ This plot should be interpreted with caution because it is using a limited numbe
 
 These differences reflect a more cultural understanding of faith than they do deep issues of doctrine.
 
-Next we look at demographic factors. First, do people of varying incomes tend to cluster in certain categories? The chart below shows that income does not vary much along religious beliefs (the horizontal dimension), but rather mostly along the vertical dimension, political opinion. Again, this finding is not surprising given how we know that wealthier people in the United States tend to be more conservative. It should be noted too, that these lines are just estimates--it is most likely that people in these income categories will fall in between these lines, but you can find plenty of respondents on the plot that don't fall into these neat buckets. What it does tell us is that, regardless of anything else, including religious belief, wealthier people are more conservative. On the other hand, we don't know whether a wealthy person is necessarily more or less conservative when it comes to religion: there are both conservative and liberal wealthy respondents.
+Next we look at demographic factors. First, do people of varying incomes tend to cluster in certain categories? The chart below shows that income does not vary much along religious beliefs (the horizontal dimension), but rather mostly along the vertical dimension, political opinion. Again, this finding is not surprising given that wealthier people in the United States tend to be more conservative. It should be noted too, that these lines are just estimates--it is most likely that people in these income categories will fall in between these lines, but you can find plenty of respondents on the plot that don't fall into these neat buckets. What it does tell us is that, regardless of religious belief, wealthier people are more conservative. On the other hand, we don't know whether a wealthy person is necessarily more or less conservative when it comes to religion: there are both conservative and liberal wealthy believers.
 
-```{r regions, echo=FALSE, message=FALSE, warning=FALSE}
+
+```{r regions, echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 income_slope <-  ordinal_coefs$income[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
 income_coefs <- ordinal_coefs$income[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$income,'dimnames')[[2]])]
 income_labels <- levels(data$income)[2:length(levels(data$income))]
 dims <- sapply(income_coefs, function(x) (-x*income_slope)/(sqrt(sum(income_slope^2))))
-income_data <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=income_labels)
-# 
-# income_data <- as_data_frame(calc_points)
-# names(income_data) <- income_labels
-# income_data$xpoints <- seq(from=-2,to=2,length.out=100)
-# income_data <-  gather(income_data,categories,ypoints,-xpoints)
+all_points_income <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=income_labels)
+
 text_data <- data_frame(dim1=dims[1,],dim2=dims[2,],labels=income_labels)
 
- sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+ sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=income_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Income Categories') %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom right')
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Income',showlegend=FALSE) %>% add_lines(data=all_points_income,y=~ypoints,x=~xpoints,color=~categories,name='Income Categories',inherit=FALSE) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom right',color=I('gray30'))
 ```
 
-Next we'll look at education. This chart shows that the effect education is very different from income--while income tells us how politically conservative or liberal someone is, education is much more likely to tell us how conservative or liberal their religion is. There are people who are politically conservative who are well-educated, but at the same time these same people also tend to be more liberal in terms of their beliefs.
+To see the uncertainy in these estimates, I'll show the points again, except that this time I'll color the points by whether or not the respondent makes more than $150,000. Darker colors indicate higher concentrations of wealthy respondents. We see in this chart that there is a clump of dark red in the upper-left corner corresponding to the liberal religion/liberal politics group, but that the clump in the bottom-right corner of conservative religion/conservative politics is much darker. In other words, there are wealthy respondents who are liberal politically, but there is a significantly larger group on the conservative end of the spectrum. This chart primarily serves to show how the lines reflect trends, not absolutes. Some people with high income will be politically liberal even if the majority of wealthy people are conservative.
 
-```{r,echo=FALSE,message=FALSE,warning=FALSE}
+```{r income_points, echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
+
+# sample_scores$grad_degree <- factor(as.numeric(if_else(sample_data$income %in% c('$100,000','$150,000','$150,000 or more'),
+#                        TRUE,FALSE)),labels=c('Under $100K','Over $100K'))
+#hoverinfo='text',name='All Respondents',opacity=0.2,size=I(50)
+#colors=viridisLite::inferno(10),
+#
+
+
+filter(sample_scores,if_else(sample_data$income %in% '$150,000 or more',TRUE,FALSE)) %>% plot_ly(y=~F2,x=~F1,colors="Reds") %>% add_histogram2dcontour() %>% 
+  layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Number of Respondents with Income Higher than $150K') 
+```
+
+
+Next we'll look at education. This chart shows that the effect education is very different from income--while income tells us how politically conservative or liberal someone is, education is much more likely to tell us how conservative or liberal their religion is. It is also interesting to note that people with a high school education or less are very different than those who have at least some college or more schooling. Those with less than a college education are much more likely to be conservative on their religious views--although this difference doesn't tell us much about their politics.
+
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE,fig.width=8.5,fig.height=6}
 educ_slope <-  ordinal_coefs$educ[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$educ,'dimnames')[[2]])]
 educ_coefs <- ordinal_coefs$educ[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$educ,'dimnames')[[2]])]
 educ_labels <- levels(data$educ)[2:length(levels(data$educ))]
 dims <- sapply(educ_coefs, function(x) (-x*educ_slope)/(sqrt(sum(educ_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
+all_points_educ <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=educ_labels)
 
-educ_data <- as_data_frame(calc_points)
-names(educ_data) <- educ_labels
-educ_data$ypoints <- seq(from=-2,to=2,length.out=100)
-educ_data <-  gather(educ_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(educ_labels))
-plot_text <- sapply(1:length(educ_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
+#Offset text labels
+dims[2,] <- dims[2,] + seq(from=-2,to=2,length.out=ncol(dims))
 
-text_data <- data_frame(dim1=plot_text[2,],
-                           dim2=plot_text[1,],
+text_data <- data_frame(dim1=dims[1,],
+                           dim2=dims[2,],
                         labels=educ_labels)
 
 
- sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+ sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
- yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=educ_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Education',
-                                                                             text=~categories) 
+ yaxis=list(title="",showticklabels = FALSE),
+ title='Education',showlegend=FALSE) %>% add_lines(data=all_points_educ,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Education',
+                                                                             text=~categories) %>% 
+   add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom',color=I('gray30'),showlegend=FALSE)
 
 ```
 
-Given these two differing effects of income and education, we can learn something by putting the lines onto the same plot, making cross-hatch. (Yes, we are literally putting people in boxes). Now we have a bunch of pick-up sticks laid on top of our chart. While it is a bit too much to absorb, it shows how income and education have a complicated interaction when it comes to people's religious and political beliefs. To give just one interesting interpretation, there is a big box of people who have a very high income (more than $150K) but low education (high school or less). These people tend to have very conservative politics but their religious beliefs are more conservative. On the flip side, the box with people with high income and high education shows that they are more liberal politically, although they also have more conservative beliefs. In other words, people are complicated, and we can't always know people's beliefs just by knowing only their education or income.
 
-```{r,echo=FALSE,  message=FALSE, warning=FALSE}
- sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+Given these two differing effects of income and education, we can learn something by putting the lines onto the same plot, making a cross-hatch. (Yes, I am literally putting people in boxes). Now we have a bunch of pick-up sticks laid on top of our chart. While it is a bit too much to absorb, it shows how income and education have a complicated interaction when it comes to people's religious and political beliefs. To give just one interesting interpretation, there is a big box of people who have a very high income (more than $150K) but low education (high school or less). These people tend to have very conservative politics and their religious beliefs are also more conservative. On the flip side, the box with people with low income and high education shows that they are more liberal politically and they tend to have more liberal faith. In other words, people are complicated, and we can't always know people's beliefs just by knowing either their education or their income.
+
+
+```{r,echo=FALSE,  message=FALSE, warning=FALSE,fig.width=10,fig.height=6}
+ sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=income_data,y=~ypoints,x=~xpoints,linetype=~categories,inherit=FALSE,name='Income Categories',text=~categories) %>% add_lines(data=educ_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Education',
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Both Education and Income') %>% add_lines(data=all_points_income,y=~ypoints,x=~xpoints,color=~categories,linetype=~categories,name='Income Categories',text=~categories,colors=I("Reds")) %>% add_lines(data=all_points_educ,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='Education',
                                                                              text=~categories) 
 ```
 
-Now we're going to dig deep into how people identify in terms of religion and what that says about their politics. First, we'll look at responses to the question, "How often do you share your faith with non-believers or people from other religious backgrounds?" We see that this question generally corresponds to what we know of religious belief: those who share their faith "once or twice a month or more" tend to also have more conservative beliefs. In addition, there is a slight leftward tilt to the lines, which implies that these people also tend to be more *liberal* politically. It's not a very strong relationship, but it is there, and it is quite interesting. Essentially, it means that people who share their faith a lot are in general more conservative in their religious beliefs. But when we look at people who are equally conservative in religious belief, those who share their faith more are also somewhat more liberal (or moderate) politically.
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+
+Now we're going to dig deep into how people identify in terms of religion and what that says about their politics. First, we'll look at responses to the question, "How often do you share your faith with non-believers or people from other religious backgrounds?" We see that this question generally corresponds to what we know of religious belief: those who share their faith "once or twice a month or more" tend to also have more conservative beliefs. In addition, there is a slight leftward tilt to the lines, which implies that these people also tend to be more *liberal* politically. It's not a very strong relationship, but it is there, and it is quite interesting. Essentially, it means that people who share their faith a lot are in general more conservative in their religious beliefs. But when we look at people who are equally conservative in religious belief, those who share their faith are also more liberal (or moderate) politically.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 share_slope <-  ordinal_coefs$qi2g[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qi2g,'dimnames')[[2]])]
 share_coefs <- ordinal_coefs$qi2g[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$qi2g,'dimnames')[[2]])]
 share_labels <- levels(data$qi2g)[2:length(levels(data$qi2g))]
 dims <- sapply(share_coefs, function(x) (-x*share_slope)/(sqrt(sum(share_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=share_labels)
 
-share_data <- as_data_frame(calc_points)
-names(share_data) <- share_labels
-share_data$ypoints <- seq(from=-2,to=2,length.out=100)
-share_data <-  gather(share_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(share_labels))
-plot_text <- sapply(1:length(share_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
-
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
+#Offset text labels
+dims[2,] <- dims[2,] + seq(from=-2,to=2,length.out=ncol(dims))
+text_data <- data_frame(dim1=dims[1,],
+                        dim2=dims[2,],
                         labels=share_labels)
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=share_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='shareation',
-                                                                                     text=~categories) 
+         yaxis=list(title="",showticklabels = FALSE),
+         title='How often do you share your faith?',showlegend=FALSE) %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='shareation',
+                                                                                     text=~categories) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',color=I('gray30'),textposition='bottom right')
 ```
-Another important part of faith is praying. The chart below shows the predicted lines for a question that asks respondents how often they pray. Again, we see that praying is a good indicator of whether someone is more conservative religiously. We also see the same, even slighter, leftward tilt, implying that regardless of belief, people who pray a lot will tilt (ever so slightly) liberal politically.
 
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+Another important part of faith is praying. The chart below shows the predicted lines for a question that asks respondents how often they pray. Again, we see that praying is a good indicator of whether someone is more conservative religiously. We also see the same, even slighter, leftward tilt, implying that regardless of belief, people who pray a lot will tilt (ever so slightly) liberal politically. One additional note is that the "Never" category is way out to the left on religious belief. This happened because there are only a few people who never pray in America--this survey estimates it at about 1 in 10 Americans--so the model pushed them way outside the normal boundaries. This is a case where the model isn't quite as accurate as it could be because of the small number of people in this particular category.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 qi1_slope <-  ordinal_coefs$qi1[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qi1,'dimnames')[[2]])]
 qi1_coefs <- ordinal_coefs$qi1[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$qi1,'dimnames')[[2]])]
 qi1_labels <- levels(data$qi1)[2:length(levels(data$qi1))]
 dims <- sapply(qi1_coefs, function(x) (-x*qi1_slope)/(sqrt(sum(qi1_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=qi1_labels)
 
-qi1_data <- as_data_frame(calc_points)
-names(qi1_data) <- qi1_labels
-qi1_data$ypoints <- seq(from=-2,to=2,length.out=100)
-qi1_data <-  gather(qi1_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(qi1_labels))
-plot_text <- sapply(1:length(qi1_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
+#Offset text labels
+dims[2,] <- dims[2,] + seq(from=-2,to=2,length.out=ncol(dims))
 
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
+text_data <- data_frame(dim1=dims[1,],
+                        dim2=dims[2,],
                         labels=qi1_labels)
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=qi1_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qi1ation',
-                                                                                     text=~categories) 
+         yaxis=list(title="",showticklabels = FALSE),
+         title='How often do you pray?',showlegend=FALSE) %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qi1ation',
+                                                                                     text=~categories) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom right',color=I('gray30'))
 ```
-Finally, let's look at how often people attend church (or place of worship), which is also a core component of all religions. These lines show an even more pronounced leftward tilt. This chart means that people who attend church are much more likely to be more conservative in their religious beliefs, but at the same time their political opinions are just a bit more liberal than fellow believers who don't attend church.
 
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+Finally, let's look at how often people attend church (or place of worship), which is also a core component of all religions. These lines show an even more pronounced leftward tilt. This chart means that people who attend church are much more likely to be more conservative in their religious beliefs, but at the same time their political opinions are more liberal than fellow believers who don't attend church.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 attend_slope <-  ordinal_coefs$attend[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$attend,'dimnames')[[2]])]
 attend_coefs <- ordinal_coefs$attend[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$attend,'dimnames')[[2]])]
 attend_labels <- levels(data$attend)[2:length(levels(data$attend))]
 dims <- sapply(attend_coefs, function(x) (-x*attend_slope)/(sqrt(sum(attend_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=attend_labels)
 
-attend_data <- as_data_frame(calc_points)
-names(attend_data) <- attend_labels
-attend_data$ypoints <- seq(from=-2,to=2,length.out=100)
-attend_data <-  gather(attend_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(attend_labels))
-plot_text <- sapply(1:length(attend_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
+#Offset text labels
+dims[2,] <- dims[2,] + seq(from=-2,to=2,length.out=ncol(dims))
 
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
+text_data <- data_frame(dim1=dims[1,],
+                        dim2=dims[2,],
                         labels=attend_labels)
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=attend_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='attendation',
-                                                                                     text=~categories) 
+         yaxis=list(title="",showticklabels = FALSE),showlegend=FALSE,
+         title='How often do you attend your place of worship?') %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='attendation',
+                                                                                     text=~categories) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom',color=I('gray30'),showlegend=FALSE)
 ```
-Now that we've diagnosed the very interesting relationship between religious belief and religious practice, we can look at divisive political and religious questions that were asked respondents. First, we'll use a question that measures the exclusivity of people's religious commitments. This question asked, "is your religion the one, true faith leading to eternal life, or can many religions lead to eternal life?" We only put one line on the chart below because this is a simple yes/no question. Those to the right of the line said that their religion is exclusive, while those to the left said that many religions can lead to eternal life. This question does not tell us much, if anything, about someone's political views, but it does clearly delineate those who are very conservative in their religious beliefs from those who aren't.
 
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+
+Now that we've diagnosed the very interesting relationship between religious belief and religious practice, we can look at divisive political and religious questions that were asked of respondents. First, we'll use a question that measures the exclusivity of people's religious commitments. This question asked, "is your religion the one, true faith leading to eternal life, or can many religions lead to eternal life?" We only put one line on the chart below because this is a simple yes/no question. Those to the right of the line said that their religion is exclusive, while those to the left said that many religions can lead to eternal life. This question does not tell us much, if anything, about someone's political views, but it does clearly delineate those who are very conservative in their religious beliefs from those who aren't.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 qh1_slope <-  ordinal_coefs$qh1[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qh1,'dimnames')[[2]])]
 qh1_coefs <- ordinal_coefs$qh1[grepl(pattern='d',x=attr(ordinal_coefs$qh1,'dimnames')[[2]])]
 qh1_labels <- levels(data$qh1)[2:length(levels(data$qh1))]
 dims <- sapply(qh1_coefs, function(x) (-x*qh1_slope)/(sqrt(sum(qh1_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels='Yes    No')
 
-qh1_data <- as_data_frame(calc_points)
-names(qh1_data) <- qh1_labels
-qh1_data$ypoints <- seq(from=-2,to=2,length.out=100)
-qh1_data <-  gather(qh1_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(qh1_labels))
-plot_text <- sapply(1:length(qh1_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
+#Offset text labels
+dims[2,] <- dims[2,] + seq(from=-2,to=2,length.out=ncol(dims))
 
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
-                        labels=qh1_labels)
+text_data <- data_frame(dim1=dims[1,],
+                        dim2=1,
+                        labels='Yes    No')
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
-  layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=qh1_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qh1ation',
-                                                                                     text=~categories) 
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
+  layout(annotations=a,showlegend=FALSE,xaxis=list(title="",showticklabels = FALSE),
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Can many religions lead to eternal life?') %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qh1ation',
+                                                                                     text=~categories) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',color=I('gray30'))
 ```
 
-We first look at the question on homosexuality, which we know is very divisive on both dimensions. This question asked respondents, "should homosexuality be discouraged by society?" Unlike religious practice, this question has a strong rightward tilt. This means that those who think homosexuality should be discouraged are more likely to be conservative politically and religiously. This question would appear to exemplify the divide between the groups that match conservative religious beliefs to conservative politics and vice versa.
 
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+We first look at the question on homosexuality, which we know is very divisive on both dimensions. This question asked respondents, "should homosexuality be accepted by society?" Unlike religious practice, this question has a strong rightward tilt. This means that those who think homosexuality should be discouraged are more likely to be conservative politically and religiously. This question would appear to exemplify the divide between the groups that match conservative religious beliefs to conservative politics and vice versa. This line cuts the Milky Way galaxy of survey respondents neatly in half. We can also see that there are in general more respondents on the accept homosexuality side than the discourage homosexuality side.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 qb2a_slope <-  ordinal_coefs$qb2a[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qb2a,'dimnames')[[2]])]
 qb2a_coefs <- ordinal_coefs$qb2a[grepl(pattern='d',x=attr(ordinal_coefs$qb2a,'dimnames')[[2]])]
 qb2a_labels <- levels(data$qb2a)[2:length(levels(data$qb2a))]
 dims <- sapply(qb2a_coefs, function(x) (-x*qb2a_slope)/(sqrt(sum(qb2a_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
-
-qb2a_data <- as_data_frame(calc_points)
-names(qb2a_data) <- qb2a_labels
-qb2a_data$ypoints <- seq(from=-2,to=2,length.out=100)
-qb2a_data <-  gather(qb2a_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(qb2a_labels))
-plot_text <- sapply(1:length(qb2a_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
-
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
-                        labels=qb2a_labels)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels='Yes    No')
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
-  layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=qb2a_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2aation',
-                                                                                     text=~categories) 
+
+text_data <- data_frame(dim1=all_points$xpoints[600],
+                        dim2=all_points$ypoints[600],
+                        labels='Yes    No')
+
+
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
+  layout(annotations=a,showlegend=FALSE,xaxis=list(title="",showticklabels = FALSE),
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Should homosexuality be accepted by society?') %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2aation',
+                                                                                     text=~categories)  %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',color=I('gray30'))
 ```
 
-While homosexuality is a social question with clear religious and political connotations, we can look at whether other political questions are similarly divisive along religious lines. The question below asks respondents whether they think government aid to the poor does more harm than good. The slant on this line is similar to the question on homosexuality, though not as steep. People who believe that the government aid to the poor harms the poor are more likely to be conservative religiously and politically, although the relationship with religion is much weaker. It is also interesting that this line goes straight through the middle of the chart. Those who aren't sure about whether aid does more harm or good are also those who are politically moderates.
 
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+While homosexuality is a social question with clear religious and political connotations, we can look at whether other political questions are similarly divisive along religious lines. The question below asks respondents whether they think government aid to the poor does more harm than good. The slant on this line is very different--it is nearly completely horizontal. This means that government welfare policy is not an issue that breaks along religious lines. It does divide conservatives and liberals in terms of politics, but it doesn't reflect an underlying religious divide as well. People who have conservative and liberal faith fall on both sides of the question.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 qb2b_slope <-  ordinal_coefs$qb2b[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qb2b,'dimnames')[[2]])]
 qb2b_coefs <- ordinal_coefs$qb2b[grepl(pattern='d',x=attr(ordinal_coefs$qb2b,'dimnames')[[2]])]
 qb2b_labels <- levels(data$qb2b)[2:length(levels(data$qb2b))]
 dims <- sapply(qb2b_coefs, function(x) (-x*qb2b_slope)/(sqrt(sum(qb2b_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
-
-qb2b_data <- as_data_frame(calc_points)
-names(qb2b_data) <- qb2b_labels
-qb2b_data$ypoints <- seq(from=-2,to=2,length.out=100)
-qb2b_data <-  gather(qb2b_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(qb2b_labels))
-plot_text <- sapply(1:length(qb2b_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
-
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
-                        labels=qb2b_labels)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels='No<br><br><br>Yes')
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+
+text_data <- data_frame(dim1=all_points$xpoints[450],
+                        dim2=all_points$ypoints[450],
+                        labels='No<br><br><br>Yes')
+
+
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=qb2b_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2bation',
-                                                                                     text=~categories) 
+         yaxis=list(title="",showticklabels = FALSE),showlegend=FALSE,
+         title='Does government aid to the poor do more harm than good?') %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2bation',
+                                                                                     text=~categories) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',color=I('gray30'))
 ```
 
-Next we'll examine environmental policy. This question asked respondents whether stricter environmental regulations are worth the added cost. This question also breaks down along both religious and political lines: people who think environmental regulations are more important tend to be more liberal politically and religously, although the effect is stronger for their political ideology than for religion.
 
-```{r,echo=FALSE, message=FALSE, warning=FALSE}
+Next we'll examine environmental policy. This question asked respondents whether stricter environmental regulations are worth the added cost. This question is similar to the homosexuality question because it breaks down along political and religious lines. People who think environmental regulations are more important tend to be more liberal both politically and religously, although the relationship is stronger for their political ideology than for their faith.
+
+
+```{r,echo=FALSE, message=FALSE, warning=FALSE,fig.width=8.5,fig.height=6}
 qb2c_slope <-  ordinal_coefs$qb2c[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$qb2c,'dimnames')[[2]])]
 qb2c_coefs <- ordinal_coefs$qb2c[grepl(pattern='d',x=attr(ordinal_coefs$qb2c,'dimnames')[[2]])]
 qb2c_labels <- levels(data$qb2c)[2:length(levels(data$qb2c))]
 dims <- sapply(qb2c_coefs, function(x) (-x*qb2c_slope)/(sqrt(sum(qb2c_slope^2))))
 
-all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores)
-
-qb2c_data <- as_data_frame(calc_points)
-names(qb2c_data) <- qb2c_labels
-qb2c_data$ypoints <- seq(from=-2,to=2,length.out=100)
-qb2c_data <-  gather(qb2c_data,categories,xpoints,-ypoints)
-to_choose <- floor(nrow(calc_points)/length(qb2c_labels))
-plot_text <- sapply(1:length(qb2c_labels),function(x) {
-  y <- calc_points[,x][(x*14)-13]
-  x <- seq(from=-2,to=2,length.out=100)[(x*14)-13]
-  return(c(x,y))
-})
-
-text_data <- data_frame(dim1=plot_text[2,],
-                        dim2=plot_text[1,],
-                        labels=qb2c_labels)
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels='Yes<br><br><br>No')
 
 
-sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels) %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.1) %>% 
+
+text_data <- data_frame(dim1=all_points$xpoints[350],
+                        dim2=all_points$ypoints[350],
+                        labels='Yes<br><br><br>No')
+
+
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
   layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
-         yaxis=list(title="",showticklabels = FALSE)) %>% add_lines(data=qb2c_data,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2cation',
-                                                                                     text=~categories) 
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Are stricter environmental regulations worth the extra cost?',
+         showlegend=FALSE) %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='qb2cation',
+                                                                                     text=~categories) %>% add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',color=I('gray30'))
 ```
+
 
 Based on our analysis so far, we know that core political questions, such as welfare, environmental regulations, and homosexuality can all divide people on both religious and political grounds. The strongest divide is on homosexuality. However, we also find that there is a difference between religious belief and religious practice. People who are similarly conservative in religious belief differ in their political views depending on how much they practice their faith. Those who practice their faith more tend to be slightly more liberal politically as well.
 
+We'll put up one last question from our survey. We know from the polls during the election that there was a divide between younger and older evangelicals over political candidates--generally speaking, older evangelicals preferred Trump, while younger evangelicals were much more likely to prefer third-party candidates or Clinton. For this chart, we'll put up both the age categories and a vertical line that shows where evangelicals are on the religion spectrum. It does not show a pretty picture. People who are younger tend to be both more liberal politically and religiously. On the flip side, people who are evangelicals are very conservative in general in terms of their religious views, and even compared to people who share the same religious views but wouldn't choose the label evangelical, they are more conservative politically. In total, it seems that there is a looming split in the evangelical church between younger and older believers, with younger believers moving away from their older peers in both religious faith and political ideology.
+
+
+```{r,echo=FALSE,message=FALSE,warning=FALSE,fig.width=8.5,fig.height=6}
+agerec_slope <-  ordinal_coefs$agerec[grepl(pattern='a[0-9]',x=attr(ordinal_coefs$agerec,'dimnames')[[2]])]
+agerec_coefs <- ordinal_coefs$agerec[grepl(pattern='d[0-9]+',x=attr(ordinal_coefs$agerec,'dimnames')[[2]])]
+agerec_labels <- levels(data$agerec)[2:length(levels(data$agerec))]
+dims <- sapply(agerec_coefs, function(x) (-x*agerec_slope)/(sqrt(sum(agerec_slope^2))))
+
+all_points <- calc_points(dims=dims,rectangle_scores = rectangle_scores,labels=agerec_labels)
+
+all_points_evan <- calc_points(dims=matrix(c(reltrad_data$dim1[2],reltrad_data$dim2[2]),nrow=2,ncol=1),rectangle_scores = rectangle_scores,labels='Evangelicals')
+
+to_choose <- floor(nrow(all_points)/length(agerec_labels))
+
+#Offset text labels
+# dims[2,] <- dims[2,] + seq(from=-2,to=2,length.out=ncol(dims))
+
+text_data <- data_frame(dim1=dims[1,],
+                        dim2=dims[2,],
+                        labels=agerec_labels)
+
+text_data_evan <- data_frame(dim1=all_points_evan$xpoints[1000],
+                             dim2=all_points_evan$ypoints[1000]+.3,
+                             labels='Evangelicals')
+
+# need to drop people who are really old
+
+all_points <- all_points %>% group_by(categories) %>% mutate(mean_x=mean(xpoints)) %>% filter(mean_x<rectangle_scores['max_x'])
+text_data <- filter(text_data,labels %in% unique(all_points$categories))
+sample_scores %>% plot_ly(y=~F2,x=~F1,text=~data_labels,colors='Greens') %>% add_markers(hoverinfo='text',name='All Respondents',opacity=0.2,size=1) %>% 
+  layout(annotations=a,xaxis=list(title="",showticklabels = FALSE),
+         yaxis=list(title="",showticklabels = FALSE),
+         title='Age & Evangelicals',showlegend=FALSE) %>% add_lines(data=all_points,y=~ypoints,x=~xpoints,color=~categories,inherit=FALSE,name='agerecation',
+                                                           text=~categories) %>% 
+  add_text(data=text_data,x=~dim1,y=~dim2,text=~labels,name='Point Labels',textposition='bottom',color=I('gray30'),showlegend=FALSE) %>% add_lines(data=all_points_evan,y=~ypoints,x=~xpoints,inherit=FALSE,
+                                                           text=~categories,color=I('gray30'),linetype=I(2)) %>% 
+  add_text(data=text_data_evan,x=~dim1,y=~dim2,text=~labels,color=I('red'),textposition='top center')
+
+```
+
+
 This was a preliminary analysis, and these conclusions aren't firm. But they do indicate the nature of politics and religion in America today, and the issues that divide us and unite us. Also, we shouldn't just think of religious identity as a list of questions but also as a list of practices. When we note that certain political issues tend to divide Americans on both religious and political grounds, we can't assume that all Americans are equally devoted to their religious traditions even if they believe them to be true. As is often the case, reality is more complicated than our limited perspectives allow it to be.
+
+The potential conflict between younger and older evangelicals that our last chart illustrates is part of what motivates this web page. We want to offer a space for young evangelicals to hash out their political and religious differences in a setting that is non-confrontational, biblically-oriented, and open to any kind of controversial topic. In a sense, we don't want to just ask how Christians should vote, but rather we want to be Christians who do politics.
